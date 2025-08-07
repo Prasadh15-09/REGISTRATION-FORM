@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Attendance Calculator</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      --radius: 12px;
+      --shadow: 0 10px 30px rgba(0,0,0,0.08);
+      --space: 1rem;
+      font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      background: #f0f4fa;
+      color: #1f2d3a;
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:2rem;
+    }
+    .card {
+      background:white;
+      border-radius: var(--radius);
+      padding:2rem 2.5rem;
+      max-width:480px;
+      width:100%;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+    h1 {
+      margin:0 0 0.5rem;
+      font-size:1.75rem;
+    }
+    p.subtitle {
+      margin:0 0 1.25rem;
+      color:#556b89;
+      font-size:0.95rem;
+    }
+    .grid {
+      display:grid;
+      gap:1rem;
+      margin-bottom:1.5rem;
+    }
+    label {
+      display:block;
+      font-size:0.75rem;
+      font-weight:600;
+      margin-bottom:4px;
+      text-transform:uppercase;
+      letter-spacing:0.5px;
+    }
+    input[type=number] {
+      width:100%;
+      padding:0.65rem 0.75rem;
+      border-radius:8px;
+      border:1px solid #d7dfe9;
+      font-size:1rem;
+      outline:none;
+      transition: border .2s;
+    }
+    input[type=number]:focus {
+      border-color:#5c9ef0;
+    }
+    .row {
+      display:flex;
+      gap:0.75rem;
+      flex-wrap:wrap;
+      align-items:flex-end;
+    }
+    .btn {
+      padding:0.75rem 1.25rem;
+      border:none;
+      border-radius:10px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:1rem;
+      background: #466bf3;
+      color:white;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      transition:filter .2s, transform .1s;
+    }
+    .btn:hover { filter:brightness(1.05); }
+    .btn:active { transform:translateY(1px); }
+    .result {
+      background:#f5f9ff;
+      border:1px solid #d7e4fc;
+      padding:1rem 1rem;
+      border-radius:8px;
+      font-size:1rem;
+      margin-top:0.5rem;
+      line-height:1.3;
+    }
+    .small {
+      font-size:0.8rem;
+      color:#556b89;
+    }
+    .example {
+      margin-top:1rem;
+      background:#eef6ff;
+      border-radius:6px;
+      padding:0.75rem 1rem;
+      font-size:0.9rem;
+    }
+    .footer {
+      margin-top:1.5rem;
+      font-size:0.7rem;
+      color:#7a8fa6;
+      text-align:center;
+    }
+  </style>
+</head>
+<body>
+  <div class="card" aria-label="Attendance calculator">
+    <h1>Attendance Calculator</h1>
+    <p class="subtitle">How many more classes to attend to reach target percentage.</p>
+
+    <div class="grid">
+      <div>
+        <label for="attended">Classes Attended</label>
+        <input type="number" id="attended" min="0" value="126" />
+      </div>
+      <div>
+        <label for="held">Classes Held</label>
+        <input type="number" id="held" min="0" value="169" />
+      </div>
+      <div>
+        <label for="target">Target %</label>
+        <input type="number" id="target" min="1" max="100" step="0.1" value="75" />
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="btn" id="compute">Compute</button>
+      <button class="btn" id="reset" style="background:#e2e8f0;color:#1f2d3a;">Reset</button>
+    </div>
+
+    <div id="output" class="result" aria-live="polite">
+      Enter values and click Compute to see how many more classes you need to attend.
+    </div>
+
+    <div class="example">
+      <strong>Example with initial values:</strong><br/>
+      Attended = 126, Held = 169, Target = 75% → Need to attend <strong>3</strong> more consecutive classes to reach exactly 75%.<br/>
+      Calculation: (126 + x)/(169 + x) ≥ 0.75 → x = ceil((0.75×169 −126)/0.25) = ceil(0.75/0.25)=3.
+    </div>
+
+    <div class="footer">
+      If you miss any of the next x classes, the required number will increase; recalc after each class.
+    </div>
+  </div>
+
+  <script>
+    function computeNeeded(attended, held, targetPct) {
+      if (held < 0 || attended < 0) return { error: "Negative values are not allowed." };
+      if (attended > held) return { error: "Attended cannot exceed classes held." };
+      if (targetPct <= 0 || targetPct > 100) return { error: "Target percent must be (0,100]." };
+      const target = targetPct / 100;
+      const current = held === 0 ? 0 : attended / held;
+      if (current >= target) {
+        return {
+          needed: 0,
+          currentPct: (current * 100).toFixed(2),
+          explanation: "You already have at least the target attendance."
+        };
+      }
+      // Solve (attended + x)/(held + x) >= target
+      // => attended + x >= target*(held + x)
+      // => x - target*x >= target*held - attended
+      // => x*(1 - target) >= target*held - attended
+      const numerator = target * held - attended;
+      const denom = 1 - target;
+      let x = Math.ceil(numerator / denom);
+      if (x < 0) x = 0;
+      const newPct = ((attended + x) / (held + x)) * 100;
+      return {
+        needed: x,
+        currentPct: (current * 100).toFixed(2),
+        finalPct: newPct.toFixed(2),
+        explanation: `After attending ${x} more consecutive classes your attendance becomes ${(attended + x)}/${(held + x)} = ${newPct.toFixed(2)}%.`
+      };
+    }
+
+    function updateDisplay() {
+      const a = parseFloat(document.getElementById("attended").value);
+      const h = parseFloat(document.getElementById("held").value);
+      const t = parseFloat(document.getElementById("target").value);
+      const out = document.getElementById("output");
+
+      if (isNaN(a) || isNaN(h) || isNaN(t)) {
+        out.textContent = "Please enter valid numeric values.";
+        return;
+      }
+      const result = computeNeeded(a, h, t);
+      if (result.error) {
+        out.textContent = result.error;
+        return;
+      }
+      if (result.needed === 0) {
+        out.innerHTML = `
+          <div>Current attendance: <strong>${result.currentPct}%</strong></div>
+          <div>${result.explanation}</div>
+        `;
+      } else {
+        out.innerHTML = `
+          <div>Current attendance: <strong>${result.currentPct}%</strong></div>
+          <div>Target attendance: <strong>${t.toFixed(2)}%</strong></div>
+          <div>Classes to attend consecutively: <strong>${result.needed}</strong></div>
+          <div>${result.explanation}</div>
+          <div>Resulting attendance: <strong>${result.finalPct}%</strong></div>
+        `;
+      }
+    }
+
+    document.getElementById("compute").addEventListener("click", updateDisplay);
+    document.getElementById("reset").addEventListener("click", () => {
+      document.getElementById("attended").value = 126;
+      document.getElementById("held").value = 169;
+      document.getElementById("target").value = 75;
+      updateDisplay();
+    });
+
+    // auto-calc on load
+    updateDisplay();
+  </script>
+</body>
+</html>
